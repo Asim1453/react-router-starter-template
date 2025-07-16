@@ -14,25 +14,35 @@ const requestHandler = createRequestHandler(
   import.meta.env.MODE,
 );
 
-// Basit mobil tespiti
+// Daha sıkı mobil tespiti
 function isMobile(userAgent: string): boolean {
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+  return /iPhone|iPad|Android/i.test(userAgent);
 }
 
-// Google içerik basma örnekleri
+// Mobil ve desktop içerikleri
 const mobileContent = `
   <!DOCTYPE html>
   <html>
-    <head><title>Mobil Bonus</title></head>
-    <body><h1>Mobil kullanıcıya özel bonus sayfası</h1></body>
+    <head>
+      <meta charset="UTF-8">
+      <title>Mobil Bonus Sayfası</title>
+    </head>
+    <body>
+      <h1>Google'dan gelen mobil kullanıcı için içerik</h1>
+    </body>
   </html>
 `;
 
 const desktopContent = `
   <!DOCTYPE html>
   <html>
-    <head><title>Desktop Bonus</title></head>
-    <body><h1>Masaüstü kullanıcıya özel bonus sayfası</h1></body>
+    <head>
+      <meta charset="UTF-8">
+      <title>Desktop Bonus Sayfası</title>
+    </head>
+    <body>
+      <h1>Google'dan gelen masaüstü kullanıcı için içerik</h1>
+    </body>
   </html>
 `;
 
@@ -44,7 +54,11 @@ export default {
     const fromGoogle = referer.includes('google.');
     const mobile = isMobile(userAgent);
 
-    // Google'dan gelen kullanıcıya özel içerik
+    // LOG (istersen geçici kullanabilirsin)
+    // console.log("Referer:", referer);
+    // console.log("User-Agent:", userAgent);
+    // console.log("Mobile mi?:", mobile);
+
     if (fromGoogle && mobile) {
       return new Response(mobileContent, {
         status: 200,
@@ -59,7 +73,7 @@ export default {
       });
     }
 
-    // Diğer herkese React Router app'ini çalıştır
+    // Diğer herkes: normal React Router app
     return requestHandler(request, {
       cloudflare: { env, ctx },
     });
