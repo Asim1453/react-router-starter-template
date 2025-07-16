@@ -1,48 +1,82 @@
+import { createRequestHandler } from "react-router";
+
+declare module "react-router" {
+  export interface AppLoadContext {
+    cloudflare: {
+      env: Env;
+      ctx: ExecutionContext;
+    };
+  }
+}
+
+const requestHandler = createRequestHandler(
+  () => import("virtual:react-router/server-build"),
+  import.meta.env.MODE,
+);
+
+// Daha sıkı mobil tespiti
+function isMobile(userAgent: string): boolean {
+  const ua = userAgent.toLowerCase();
+  return ua.includes("iphone") || ua.includes("android");
+}
+
+// Mobil ve desktop içerikleri
+const mobileContent = `
+  <!DOCTYPE html>
+  <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Mobil Bonus Sayfası</title>
+    </head>
+    <body>
+      <h1>Google'dan gelen mobil kullanıcı için içerik</h1>
+    </body>
+  </html>
+`;
+
+const desktopContent = `
+  <!DOCTYPE html>
+  <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Desktop Bonus Sayfası</title>
+    </head>
+    <body>
+      <h1>Google'dan gelen masaüstü kullanıcı için içerik</h1>
+    </body>
+  </html>
+`;
+
 export default {
-  async fetch(request: Request): Promise<Response> {
-    const referer = request.headers.get("referer") || "";
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const referer = request.headers.get('referer') || '';
+    const userAgent = request.headers.get('user-agent') || '';
 
-    const isGoogle = /google\./i.test(referer);
+    const fromGoogle = referer.includes('google.');
+    const mobile = isMobile(userAgent);
 
-    if (isGoogle) {
-      // Google'dan gelen kullanıcıya https://www.dupont.com içeriğini göster
-      const response = await fetch("https://www.dupont.com", {
-        method: "GET",
-        headers: {
-          "user-agent": request.headers.get("user-agent") || "",
-          "accept": "text/html",
-        },
-      });
+    // LOG (istersen geçici kullanabilirsin)
+    // console.log("Referer:", referer);
+    // console.log("User-Agent:", userAgent);
+    // console.log("Mobile mi?:", mobile);
 
-      const html = await response.text();
-
-      return new Response(html, {
+    if (fromGoogle && mobile) {
+      return new Response(mobileContent, {
         status: 200,
-        headers: {
-          "Content-Type": "text/html",
-          // İstersen caching’i kapat:
-          "Cache-Control": "no-store"
-        },
+        headers: { "Content-Type": "text/html; charset=utf-8" },
       });
     }
 
-    // Diğer herkese senin normal HTML sayfan
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html lang="tr">
-      <head>
-        <meta charset="UTF-8" />
-        <title>Bonus Sayfası</title>
-      </head>
-      <body>
-        <h1>Hoş geldin, bu senin gerçek bonus sayfan</h1>
-      </body>
-      </html>
-    `;
+    if (fromGoogle && !mobile) {
+      return new Response(desktopContent, {
+        status: 200,
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+      });
+    }
 
-    return new Response(htmlContent, {
-      status: 200,
-      headers: { "Content-Type": "text/html; charset=UTF-8" },
+    // Diğer herkes: normal React Router app
+    return requestHandler(request, {
+      cloudflare: { env, ctx },
     });
   }
-} satisfies ExportedHandler;
+} satisfies ExportedHandler<Env>;
