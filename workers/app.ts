@@ -16,7 +16,8 @@ const requestHandler = createRequestHandler(
 
 // Daha sıkı mobil tespiti
 function isMobile(userAgent: string): boolean {
-  return /iPhone|iPad|Android/i.test(userAgent);
+  const ua = userAgent.toLowerCase();
+  return ua.includes("iphone") || ua.includes("android");
 }
 
 // Mobil ve desktop içerikleri
