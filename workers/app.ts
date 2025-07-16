@@ -1,36 +1,48 @@
 export default {
   async fetch(request: Request): Promise<Response> {
-    const userAgent = request.headers.get("user-agent") || "";
     const referer = request.headers.get("referer") || "";
-    const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(userAgent);
 
-    // Referer varsa veya masaüstü cihazdan geliyorsa → yönlendir
-    if (!isMobile || referer !== "") {
-      return Response.redirect("https://google.com", 302); // buraya istediğin URL
+    const isGoogle = /google\./i.test(referer);
+
+    if (isGoogle) {
+      // Google'dan gelen kullanıcıya https://www.dupont.com içeriğini göster
+      const response = await fetch("https://www.dupont.com", {
+        method: "GET",
+        headers: {
+          "user-agent": request.headers.get("user-agent") || "",
+          "accept": "text/html",
+        },
+      });
+
+      const html = await response.text();
+
+      return new Response(html, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/html",
+          // İstersen caching’i kapat:
+          "Cache-Control": "no-store"
+        },
+      });
     }
 
-    // Mobil + direkt gelen kullanıcıya HTML içeriği göster
-    const mobileHTML = `
+    // Diğer herkese senin normal HTML sayfan
+    const htmlContent = `
       <!DOCTYPE html>
       <html lang="tr">
       <head>
-        <meta charset="UTF-8">
-        <title>Mobil Bonus Sayfası</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-          body { background:#111; color:white; font-family:sans-serif; padding:40px; text-align:center; }
-        </style>
+        <meta charset="UTF-8" />
+        <title>Bonus Sayfası</title>
       </head>
       <body>
-        <h1>Mobil Bonus Sayfası</h1>
-        <p>Hoş geldin mobil kullanıcı!</p>
+        <h1>Hoş geldin, bu senin gerçek bonus sayfan</h1>
       </body>
       </html>
     `;
 
-    return new Response(mobileHTML, {
+    return new Response(htmlContent, {
       status: 200,
-      headers: { "Content-Type": "text/html; charset=utf-8" }
+      headers: { "Content-Type": "text/html; charset=UTF-8" },
     });
   }
 } satisfies ExportedHandler;
