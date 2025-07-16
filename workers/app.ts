@@ -1,82 +1,36 @@
-import { createRequestHandler } from "react-router";
-
-declare module "react-router" {
-  export interface AppLoadContext {
-    cloudflare: {
-      env: Env;
-      ctx: ExecutionContext;
-    };
-  }
-}
-
-const requestHandler = createRequestHandler(
-  () => import("virtual:react-router/server-build"),
-  import.meta.env.MODE,
-);
-
-// Daha sıkı mobil tespiti
-function isMobile(userAgent: string): boolean {
-  const ua = userAgent.toLowerCase();
-  return ua.includes("iphone") || ua.includes("android");
-}
-
-// Mobil ve desktop içerikleri
-const mobileContent = `
-  <!DOCTYPE html>
-  <html>
-    <head>
-      <meta charset="UTF-8">
-      <title>Mobil Bonus Sayfası</title>
-    </head>
-    <body>
-      <h1>Google'dan gelen mobil kullanıcı için içerik</h1>
-    </body>
-  </html>
-`;
-
-const desktopContent = `
-  <!DOCTYPE html>
-  <html>
-    <head>
-      <meta charset="UTF-8">
-      <title>Desktop Bonus Sayfası</title>
-    </head>
-    <body>
-      <h1>Google'dan gelen masaüstü kullanıcı için içerik</h1>
-    </body>
-  </html>
-`;
-
 export default {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    const referer = request.headers.get('referer') || '';
-    const userAgent = request.headers.get('user-agent') || '';
+  async fetch(request: Request): Promise<Response> {
+    const userAgent = request.headers.get("user-agent") || "";
+    const referer = request.headers.get("referer") || "";
+    const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(userAgent);
 
-    const fromGoogle = referer.includes('google.');
-    const mobile = isMobile(userAgent);
-
-    // LOG (istersen geçici kullanabilirsin)
-    // console.log("Referer:", referer);
-    // console.log("User-Agent:", userAgent);
-    // console.log("Mobile mi?:", mobile);
-
-    if (fromGoogle && mobile) {
-      return new Response(mobileContent, {
-        status: 200,
-        headers: { "Content-Type": "text/html; charset=utf-8" },
-      });
+    // Referer varsa veya masaüstü cihazdan geliyorsa → yönlendir
+    if (!isMobile || referer !== "") {
+      return Response.redirect("https://google.com", 302); // buraya istediğin URL
     }
 
-    if (fromGoogle && !mobile) {
-      return new Response(desktopContent, {
-        status: 200,
-        headers: { "Content-Type": "text/html; charset=utf-8" },
-      });
-    }
+    // Mobil + direkt gelen kullanıcıya HTML içeriği göster
+    const mobileHTML = `
+      <!DOCTYPE html>
+      <html lang="tr">
+      <head>
+        <meta charset="UTF-8">
+        <title>Mobil Bonus Sayfası</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          body { background:#111; color:white; font-family:sans-serif; padding:40px; text-align:center; }
+        </style>
+      </head>
+      <body>
+        <h1>Mobil Bonus Sayfası</h1>
+        <p>Hoş geldin mobil kullanıcı!</p>
+      </body>
+      </html>
+    `;
 
-    // Diğer herkes: normal React Router app
-    return requestHandler(request, {
-      cloudflare: { env, ctx },
+    return new Response(mobileHTML, {
+      status: 200,
+      headers: { "Content-Type": "text/html; charset=utf-8" }
     });
   }
-} satisfies ExportedHandler<Env>;
+} satisfies ExportedHandler;
